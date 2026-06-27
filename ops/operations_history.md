@@ -1,5 +1,22 @@
 # Operations History
 
+## 2026-06-27 08:16:01 — Codex
+Corrected AgentSight monitor top output to collapse restarted nova processes to one current row per logical systemd instance, then rebuilt and restarted AgentSight monitor and web services.
+
+Files touched:
+- collector/src/cmd_monitor.rs
+- collector/target/release/agentsight
+- ops/operations_history.md
+- ops/decisions.log
+
+Receipts:
+- Regression test `monitor_top_keeps_latest_row_per_logical_session_after_pid_restart` passed.
+- `cargo test --manifest-path collector/Cargo.toml monitor -- --nocapture` passed 12 monitor tests.
+- `./collector/target/release/agentsight top --plain --once -n 40` showed exactly 24 nova rows.
+- Monitor DB currently has 86 historical nova tracked rows, 24 distinct nova instances, 24 logical nova rows in the current top query, and 67 sampled nova processes across those process families.
+
+— Codex
+
 ## 2026-06-27 07:55:32 — Codex
 Enabled and started `agentsight-web.service`; verified AgentSight's own web UI serves HTML and snapshot data on port 7395.
 

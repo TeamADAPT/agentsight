@@ -285,7 +285,7 @@ fn load_monitor_top_rows(
          WHERE w.id IN (
             SELECT MAX(id)
             FROM monitor_windows
-            GROUP BY session_id, root_pid, root_starttime_ticks
+            GROUP BY session_id
          )
          ORDER BY w.window_end_ms DESC"
     );
@@ -1466,6 +1466,64 @@ mod tests {
         assert_eq!(top.rows.len(), 1);
         assert_eq!(top.rows[0].files, 2);
         assert_eq!(top.rows[0].network, 1);
+    }
+
+    #[test]
+    fn monitor_top_keeps_latest_row_per_logical_session_after_pid_restart() {
+        let temp = tempfile::tempdir().unwrap();
+        let mut store = MonitorStore::open_path(temp.path().join("monitor.db")).unwrap();
+
+        for (root_pid, root_starttime_ticks, window_start_ms, window_end_ms) in
+            [(100, 1_000, 10_000, 12_000), (200, 2_000, 12_000, 14_000)]
+        {
+            store
+                .insert_sample(&MonitorSample {
+                    window_start_ms,
+                    window_end_ms,
+                    sessions: vec![MonitorSessionSample {
+                        session_id: "systemd:nova:nova-001".to_string(),
+                        display_id: "nova-001".to_string(),
+                        agent_type: "nova".to_string(),
+                        root_pid,
+                        root_starttime_ticks,
+                        match_evidence: "systemd".to_string(),
+                        match_confidence: 1.0,
+                        session_path: Some(
+                            "/var/lib/novacol/novas/nova-001/config/identity.toml".to_string(),
+                        ),
+                        command: format!("/opt/novacol/bin/nova-core pid={root_pid}"),
+                        cwd: Some("/var/lib/novacol/novas/nova-001".to_string()),
+                        process_count: 1,
+                        cpu_ms: 1,
+                        rss_bytes: 1024,
+                        read_bytes: 0,
+                        write_bytes: 0,
+                        file_targets: 4,
+                        network_targets: 0,
+                        process_samples: Vec::new(),
+                        file_samples: Vec::new(),
+                        network_samples: Vec::new(),
+                    }],
+                })
+                .unwrap();
+        }
+
+        let top = build_monitor_top(
+            store.path(),
+            10,
+            &TopOptions {
+                pid: None,
+                comm: None,
+                sort: "cpu".to_string(),
+                view: "all".to_string(),
+            },
+        )
+        .unwrap();
+
+        assert_eq!(top.rows.len(), 1);
+        assert_eq!(top.rows[0].session, "nova-001");
+        assert_eq!(top.rows[0].pid, Some(200));
+        assert!(top.rows[0].command.contains("pid=200"));
     }
 
     #[test]
