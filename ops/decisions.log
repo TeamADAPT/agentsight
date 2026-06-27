@@ -1,5 +1,20 @@
 # Decisions Log
 
+## 2026-06-27 07:35:49 — Codex
+Decision recorded: Keep nova discovery scoped to the background monitor instead of generic live `top` process selection, because adding `nova-core` as a generic known agent flooded unfiltered live top output and broke existing agent-native top behavior.
+
+Files touched:
+- collector/src/sources/nova.rs
+- collector/src/sources/mod.rs
+- collector/src/cmd_monitor.rs
+- collector/src/output/format.rs
+- collector/src/output/tui.rs
+- docs/usage.md
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:27:51 — Codex
 Decision recorded: Treat the active user-provided continuation objective as authorization to implement the documented nova monitoring plan.
 

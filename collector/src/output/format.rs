@@ -107,6 +107,7 @@ pub(crate) struct TopEvidence {
     pub(crate) cwd_recent: bool,
     pub(crate) ebpf: bool,
     pub(crate) ebpf_file: bool,
+    pub(crate) systemd: bool,
     pub(crate) db: bool,
 }
 
@@ -135,6 +136,7 @@ impl TopEvidence {
                     evidence.ebpf = true;
                     evidence.ebpf_file = true;
                 }
+                "systemd" => evidence.systemd = true,
                 "db" => evidence.db = true,
                 _ => {}
             }
@@ -268,6 +270,9 @@ impl AgentTopRow {
             parts.push("eBPF:file");
         } else if evidence.ebpf {
             parts.push("eBPF");
+        }
+        if evidence.systemd {
+            parts.push("systemd");
         }
         if evidence.db {
             parts.push("db");
@@ -1001,5 +1006,15 @@ mod tests {
 
         row.trace = "db".to_string();
         assert_eq!(row.state_label(), "failed");
+    }
+
+    #[test]
+    fn evidence_label_preserves_systemd_source() {
+        let row = AgentTopRow {
+            trace: "systemd+proc+db".to_string(),
+            ..Default::default()
+        };
+
+        assert_eq!(row.evidence_label(), "/proc+systemd+db");
     }
 }

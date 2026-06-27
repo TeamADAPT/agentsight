@@ -622,6 +622,7 @@ fn evidence_summary(top: &AgentTopOutput<'_>) -> String {
         .count();
     let proc_rows = top.rows.iter().filter(|row| row.evidence().proc).count();
     let ebpf = top.rows.iter().filter(|row| row.evidence().ebpf).count();
+    let systemd = top.rows.iter().filter(|row| row.evidence().systemd).count();
     let ebpf_file = top
         .rows
         .iter()
@@ -647,6 +648,9 @@ fn evidence_summary(top: &AgentTopOutput<'_>) -> String {
     }
     if ebpf > 0 {
         parts.push(format!("ebpf={ebpf}"));
+    }
+    if systemd > 0 {
+        parts.push(format!("systemd={systemd}"));
     }
     if parts.is_empty() {
         "none yet".to_string()

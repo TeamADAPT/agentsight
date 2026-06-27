@@ -2,13 +2,14 @@
 // Copyright (c) 2026 eunomia-bpf org.
 
 use crate::output::{AgentTopOutput, AgentTopRow, TopOptions, clear_screen, print_agent_top};
+use crate::sources::nova;
 use crate::sources::proc::{self as procfs, ProcSnapshot};
 use crate::view::live_top::{LiveMonitorSample, LiveView};
 use crate::view::top::sort_agent_rows;
 use chrono::{Datelike, Local, NaiveDate};
 use rusqlite::{Connection, OpenFlags, params};
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::io::{self, Write};
 use std::net::{Ipv4Addr, Ipv6Addr};
 use std::path::{Path, PathBuf};
@@ -277,7 +278,7 @@ fn load_monitor_top_rows(
     let sql = format!(
         "SELECT
             t.session_id, t.display_id, t.agent_type, t.root_pid, t.first_seen_ms,
-            t.command, t.cwd, w.window_start_ms, w.window_end_ms, w.process_count,
+            t.command, t.cwd, t.match_evidence, w.window_start_ms, w.window_end_ms, w.process_count,
             w.cpu_ms, w.rss_bytes, w.file_targets, {network_targets_expr}
          FROM monitor_windows w
          JOIN tracked_sessions t USING(session_id, root_pid, root_starttime_ticks)
@@ -297,15 +298,17 @@ fn load_monitor_top_rows(
         let first_seen_ms: u64 = row.get::<_, i64>(4)? as u64;
         let command: String = row.get(5)?;
         let cwd: Option<String> = row.get(6)?;
-        let window_start_ms: u64 = row.get::<_, i64>(7)? as u64;
-        let window_end_ms: u64 = row.get::<_, i64>(8)? as u64;
-        let process_count: usize = row.get::<_, i64>(9)? as usize;
-        let cpu_ms: u64 = row.get::<_, i64>(10)? as u64;
-        let rss_bytes: u64 = row.get::<_, i64>(11)? as u64;
-        let file_targets: usize = row.get::<_, i64>(12)? as usize;
-        let network_targets: usize = row.get::<_, i64>(13)? as usize;
+        let match_evidence: String = row.get(7)?;
+        let window_start_ms: u64 = row.get::<_, i64>(8)? as u64;
+        let window_end_ms: u64 = row.get::<_, i64>(9)? as u64;
+        let process_count: usize = row.get::<_, i64>(10)? as usize;
+        let cpu_ms: u64 = row.get::<_, i64>(11)? as u64;
+        let rss_bytes: u64 = row.get::<_, i64>(12)? as u64;
+        let file_targets: usize = row.get::<_, i64>(13)? as usize;
+        let network_targets: usize = row.get::<_, i64>(14)? as usize;
         let window_ms = window_end_ms.saturating_sub(window_start_ms).max(1);
         let cpu_percent = cpu_ms as f64 / window_ms as f64 * 100.0;
+        let pid = (root_pid > 0).then_some(root_pid);
         Ok(AgentTopRow {
             session: if display_id.is_empty() {
                 short_monitor_session_id(&session_id)
@@ -313,7 +316,7 @@ fn load_monitor_top_rows(
                 display_id
             },
             agent: agent_type,
-            pid: Some(root_pid),
+            pid,
             model: None,
             age_s: Some(now_ms.saturating_sub(first_seen_ms) as f64 / 1000.0),
             cpu_percent,
@@ -326,7 +329,7 @@ fn load_monitor_top_rows(
             files: file_targets,
             network: network_targets,
             unattributed: 0,
-            trace: "proc+db".to_string(),
+            trace: monitor_row_trace(&match_evidence, pid),
             command,
             workspace: cwd,
             last_message_at: None,
@@ -351,8 +354,10 @@ fn build_monitor_sample(live: &LiveMonitorSample, io_state: &mut MonitorIoState)
     let include_detail_samples = should_store_detail_samples(window_start_ms, window_end_ms);
     let mut sessions = Vec::new();
     let mut current_io = BTreeMap::new();
+    let mut used_root_pids = BTreeSet::new();
 
     for session in &live.sessions {
+        used_root_pids.insert(session.root_pid);
         let (file_target_counts, socket_inodes_by_pid) =
             collect_fd_target_counts(&session.family, &live.current);
         let network_target_counts = collect_network_target_counts(&socket_inodes_by_pid);
@@ -404,12 +409,170 @@ fn build_monitor_sample(live: &LiveMonitorSample, io_state: &mut MonitorIoState)
             },
         });
     }
+    append_nova_monitor_sessions(
+        &mut sessions,
+        &live.current,
+        live.previous.as_ref(),
+        io_state,
+        &mut current_io,
+        include_detail_samples,
+        &used_root_pids,
+    );
     io_state.previous = current_io;
 
     MonitorSample {
         window_start_ms,
         window_end_ms,
         sessions,
+    }
+}
+
+fn monitor_row_trace(match_evidence: &str, pid: Option<u32>) -> String {
+    if match_evidence == "systemd" {
+        if pid.is_some() {
+            "systemd+proc+db".to_string()
+        } else {
+            "systemd+db".to_string()
+        }
+    } else {
+        "proc+db".to_string()
+    }
+}
+
+fn append_nova_monitor_sessions(
+    sessions: &mut Vec<MonitorSessionSample>,
+    current: &ProcSnapshot,
+    previous: Option<&ProcSnapshot>,
+    io_state: &MonitorIoState,
+    current_io: &mut BTreeMap<procfs::ProcessKey, (u64, u64)>,
+    include_detail_samples: bool,
+    used_root_pids: &BTreeSet<u32>,
+) {
+    let instances = match nova::discover() {
+        Ok(instances) => instances,
+        Err(err) => {
+            log::debug!("nova systemd discovery unavailable: {}", err);
+            return;
+        }
+    };
+    let children = current.children_by_ppid();
+    for instance in instances {
+        if instance
+            .main_pid
+            .is_some_and(|pid| used_root_pids.contains(&pid))
+        {
+            continue;
+        }
+        sessions.push(build_nova_monitor_session(
+            &instance,
+            current,
+            previous,
+            &children,
+            io_state,
+            current_io,
+            include_detail_samples,
+        ));
+    }
+}
+
+fn build_nova_monitor_session(
+    instance: &nova::NovaInstance,
+    current: &ProcSnapshot,
+    previous: Option<&ProcSnapshot>,
+    children: &HashMap<u32, Vec<u32>>,
+    io_state: &MonitorIoState,
+    current_io: &mut BTreeMap<procfs::ProcessKey, (u64, u64)>,
+    include_detail_samples: bool,
+) -> MonitorSessionSample {
+    let root_pid = instance.main_pid.unwrap_or_default();
+    let root = current.procs.get(&root_pid);
+    let root_starttime_ticks = root.map(|proc_info| proc_info.starttime_ticks).unwrap_or(0);
+    let family = if root_pid > 0 {
+        procfs::process_family(root_pid, children, &current.procs)
+    } else {
+        Vec::new()
+    };
+    let (mut file_target_counts, socket_inodes_by_pid) = collect_fd_target_counts(&family, current);
+    add_existing_nova_config_targets(&mut file_target_counts, instance);
+    let network_target_counts = collect_network_target_counts(&socket_inodes_by_pid);
+    let process_samples = collect_process_samples(&family, current, previous, io_state, current_io);
+    let (cpu_ms, rss_bytes, read_bytes, write_bytes) = aggregate_process_samples(&process_samples);
+
+    MonitorSessionSample {
+        session_id: format!("systemd:nova:{}", instance.instance),
+        display_id: instance.instance.clone(),
+        agent_type: "nova".to_string(),
+        root_pid,
+        root_starttime_ticks,
+        match_evidence: "systemd".to_string(),
+        match_confidence: nova_match_confidence(instance, !family.is_empty()),
+        session_path: Some(instance.identity_path.to_string_lossy().to_string()),
+        command: truncate_field(&nova_command(instance, root), 512),
+        cwd: root
+            .and_then(|proc_info| proc_info.cwd.as_ref())
+            .map(|path| truncate_field(&path.to_string_lossy(), 512))
+            .or_else(|| Some(instance.home.to_string_lossy().to_string())),
+        process_count: family.len(),
+        cpu_ms,
+        rss_bytes,
+        read_bytes,
+        write_bytes,
+        file_targets: file_target_counts.len(),
+        network_targets: network_target_counts.len(),
+        process_samples: if include_detail_samples {
+            bounded_process_samples(process_samples)
+        } else {
+            Vec::new()
+        },
+        file_samples: if include_detail_samples {
+            bounded_target_samples(file_target_counts)
+        } else {
+            Vec::new()
+        },
+        network_samples: if include_detail_samples {
+            bounded_target_samples(network_target_counts)
+        } else {
+            Vec::new()
+        },
+    }
+}
+
+fn add_existing_nova_config_targets(
+    counts: &mut BTreeMap<String, usize>,
+    instance: &nova::NovaInstance,
+) {
+    for path in instance.config_paths() {
+        if path.exists() {
+            *counts
+                .entry(truncate_field(&path.to_string_lossy(), 768))
+                .or_insert(0) += 1;
+        }
+    }
+}
+
+fn nova_command(instance: &nova::NovaInstance, root: Option<&procfs::ProcInfo>) -> String {
+    if let Some(root) = root
+        && !root.command.is_empty()
+    {
+        return format!("{} ({})", root.command, instance.command_summary());
+    }
+    instance.command_summary()
+}
+
+fn nova_match_confidence(instance: &nova::NovaInstance, has_live_process: bool) -> f32 {
+    if has_live_process {
+        1.0
+    } else if instance.main_pid.is_some() {
+        0.85
+    } else if instance.active_state.as_deref() == Some("active") {
+        0.75
+    } else if instance.identity_path.exists()
+        || instance.env_path.exists()
+        || instance.home.exists()
+    {
+        0.65
+    } else {
+        0.5
     }
 }
 
@@ -1303,6 +1466,62 @@ mod tests {
         assert_eq!(top.rows.len(), 1);
         assert_eq!(top.rows[0].files, 2);
         assert_eq!(top.rows[0].network, 1);
+    }
+
+    #[test]
+    fn nova_systemd_instance_builds_monitor_session_without_process() {
+        let instance = nova::NovaInstance {
+            unit: "nova@nova-001.service".to_string(),
+            instance: "nova-001".to_string(),
+            home: PathBuf::from("/var/lib/novacol/novas/nova-001"),
+            identity_path: PathBuf::from("/var/lib/novacol/novas/nova-001/config/identity.toml"),
+            env_path: PathBuf::from("/etc/novacol/nova-nova-001.env"),
+            binary_path: PathBuf::from("/opt/novacol/bin/nova-core"),
+            dashboard_api: "http://127.0.0.1:8765/api/status".to_string(),
+            nats_url: "nats://127.0.0.1:4222".to_string(),
+            nats_subject_root: "nova.>".to_string(),
+            inbox_subject: "nova.nova-001.inbox".to_string(),
+            chatter_subject: "nova.nova-001.chatter".to_string(),
+            main_pid: None,
+            active_state: Some("active".to_string()),
+            sub_state: Some("running".to_string()),
+            load_state: Some("loaded".to_string()),
+            fragment_path: None,
+        };
+        let mut current_io = BTreeMap::new();
+        let session = build_nova_monitor_session(
+            &instance,
+            &ProcSnapshot::default(),
+            None,
+            &HashMap::new(),
+            &MonitorIoState::default(),
+            &mut current_io,
+            true,
+        );
+
+        assert_eq!(session.session_id, "systemd:nova:nova-001");
+        assert_eq!(session.display_id, "nova-001");
+        assert_eq!(session.agent_type, "nova");
+        assert_eq!(session.root_pid, 0);
+        assert_eq!(session.root_starttime_ticks, 0);
+        assert_eq!(session.match_evidence, "systemd");
+        assert_eq!(session.match_confidence, 0.75);
+        assert_eq!(
+            session.session_path.as_deref(),
+            Some("/var/lib/novacol/novas/nova-001/config/identity.toml")
+        );
+        assert_eq!(
+            session.cwd.as_deref(),
+            Some("/var/lib/novacol/novas/nova-001")
+        );
+        assert!(session.command.contains("unit=nova@nova-001.service"));
+        assert!(
+            session
+                .command
+                .contains("env=/etc/novacol/nova-nova-001.env")
+        );
+        assert!(session.command.contains("inbox=nova.nova-001.inbox"));
+        assert_eq!(monitor_row_trace("systemd", None), "systemd+db");
     }
 
     #[test]

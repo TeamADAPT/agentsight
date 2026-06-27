@@ -76,3 +76,36 @@ AgentSight's default filters, and saves a local SQLite session for `report`,
 Use `debug trace` only when you need low-level control over capture sources or
 filters. It is the advanced replacement for a raw trace command, not the normal
 record/report workflow.
+
+## Background Monitor
+
+Install and start the background monitor with:
+
+```sh
+./collector/target/release/agentsight monitor install-service
+```
+
+The monitor writes weekly SQLite databases under `~/.agentsight/monitor`.
+When it is running, `agentsight top --plain` reads the latest monitor snapshot
+without starting live eBPF probes.
+
+On novacol hosts, the monitor discovers nova agents from system systemd units:
+
+```sh
+systemctl list-units 'nova@nova-*.service' --type=service
+```
+
+Each `%i` instance maps to:
+
+- Runtime home: `/var/lib/novacol/novas/%i`
+- Identity file: `/var/lib/novacol/novas/%i/config/identity.toml`
+- Env file: `/etc/novacol/nova-%i.env`
+- Main binary: `/opt/novacol/bin/nova-core`
+- Dashboard API: `http://127.0.0.1:8765/api/status`
+- NATS URL: `nats://127.0.0.1:4222`
+- NATS subjects: `nova.>`, `nova.%i.inbox`, `nova.%i.chatter`
+
+Active units use systemd `MainPID` as the process-family root for CPU, RSS,
+file, and network sampling. Loaded units without a live `MainPID` are still
+listed with `systemd+db` evidence so missing or failed nova instances remain
+visible in monitor output.

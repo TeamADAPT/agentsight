@@ -2,6 +2,7 @@
 // Copyright (c) 2026 eunomia-bpf org.
 
 pub mod agent_native;
+pub(crate) mod nova;
 pub mod proc;
 pub(crate) mod session_db;
 pub mod sqlite;
