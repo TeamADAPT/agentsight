@@ -1,5 +1,16 @@
 # Decisions Log
 
+## 2026-06-27 07:41:44 — Codex
+Decision recorded: Restart `nova-dashboard.service` via passwordless sudo after the status endpoint accepted connections but produced no response for 30 seconds; this was necessary to verify the requested dashboard API surface.
+
+Files touched:
+- /etc/systemd/system/nova-dashboard.service
+- ops/completed/nova-monitoring-discovery/completion_report.md
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:38:22 — Codex
 Decision recorded: Mark nova monitoring discovery complete after release service installation and live monitor DB receipts proved all 24 nova instances are tracked from systemd evidence.
 

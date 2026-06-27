@@ -21,5 +21,7 @@ Verification receipts:
 - `systemctl --user status agentsight-monitor.service --no-pager` showed the release monitor active, enabled, and writing `/home/x/.agentsight/monitor/monitor-2026-W26.db`.
 - `./collector/target/release/agentsight top --plain --once -n 40` showed nova monitor rows for `nova-001`, `nova-002`, and `nova-003`.
 - System Python SQLite inspection of `/home/x/.agentsight/monitor/monitor-2026-W26.db` showed 24 distinct nova sessions with `match_evidence=systemd`, including `nova-001|911019`, `nova-002|911023`, and `nova-003|911025`.
+- Final audit reran all 24 path checks with zero-padded IDs and found `missing_count=0`.
+- `nova-dashboard.service` was restarted with `sudo -n systemctl restart nova-dashboard.service` after `/api/status` hung; after restart, `curl --max-time 45 http://127.0.0.1:8765/api/status` returned 137881 bytes with `running_novas=24` and `sampled_services=24`.
 
 — Codex

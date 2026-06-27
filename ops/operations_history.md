@@ -1,5 +1,21 @@
 # Operations History
 
+## 2026-06-27 07:41:44 — Codex
+Completed final audit corrections: reran all 24 path checks with zero-padded instance IDs, restarted `nova-dashboard.service` with sudo after the status API hung, and confirmed dashboard API recovery.
+
+Files touched:
+- /etc/systemd/system/nova-dashboard.service
+- ops/completed/nova-monitoring-discovery/completion_report.md
+- ops/operations_history.md
+- ops/decisions.log
+
+Receipts:
+- All 24 runtime homes, identity files, and env files exist with `missing_count=0`.
+- `sudo -n systemctl restart nova-dashboard.service` restarted the dashboard at `2026-06-27 07:40:39 UTC`.
+- `curl --max-time 45 http://127.0.0.1:8765/api/status` returned 137881 bytes with `running_novas=24` and `sampled_services=24`.
+
+— Codex
+
 ## 2026-06-27 07:38:22 — Codex
 Moved nova monitoring discovery task directory from `ops/in_progress/` to `ops/completed/`.
 
