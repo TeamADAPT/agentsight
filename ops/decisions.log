@@ -1,5 +1,15 @@
 # Decisions Log
 
+## 2026-06-27 08:16:01 — Codex
+Decision recorded: Treat monitor top as a current logical-session view, not a historical PID-row view; historical rows remain in SQLite for continuity, while top now selects `MAX(id)` grouped by `session_id`.
+
+Files touched:
+- collector/src/cmd_monitor.rs
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:55:32 — Codex
 Decision recorded: Use the local/session snapshot source for AgentSight web UI because the background monitor DB uses a monitor-specific schema; nova monitor state remains available through `agentsight top --plain` and the monitor DB.
 
