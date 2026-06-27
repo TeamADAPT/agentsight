@@ -1,0 +1,32 @@
+# Decisions Log
+
+## 2026-06-27 07:27:31 — Codex
+Decision recorded: Preserve broad log-file ignores while explicitly tracking `ops/decisions.log`, because repository policy requires this file in version control.
+
+Files touched:
+- .gitignore
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
+## 2026-06-27 07:27:08 — Codex
+Decision recorded: Use repository-local Git identity only, avoiding global host configuration changes while enabling required commit workflow.
+
+Files touched:
+- .git/config
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
+## 2026-06-27 07:26:27 — Codex
+Decision recorded: No existing `ops/` or `plans/` tree was present, so the active nova monitoring request is tracked directly under `ops/in_progress/nova-monitoring-discovery/` and planned in `plans/nova-monitoring-discovery.md` before source changes.
+
+Files touched:
+- ops/operations_history.md
+- ops/decisions.log
+- ops/in_progress/nova-monitoring-discovery/task.md
+- plans/nova-monitoring-discovery.md
+
+— Codex

@@ -15,9 +15,11 @@ record.log.*
 .agentsight/
 # Log files
 *.log
+!ops/decisions.log
 
 # Log files
 *.log
+!ops/decisions.log
 docs/blog
 
 node_modules/
