@@ -1,5 +1,29 @@
 # Operations History
 
+## 2026-06-27 07:38:22 — Codex
+Moved nova monitoring discovery task directory from `ops/in_progress/` to `ops/completed/`.
+
+Files touched:
+- ops/in_progress/nova-monitoring-discovery/
+- ops/completed/nova-monitoring-discovery/
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
+## 2026-06-27 07:37:58 — Codex
+Built release binary, installed and started `agentsight-monitor.service`, verified active nova discovery from the running service, and wrote completion report.
+
+Files touched:
+- collector/target/release/agentsight
+- /home/x/.config/systemd/user/agentsight-monitor.service
+- /home/x/.agentsight/monitor/monitor-2026-W26.db
+- ops/in_progress/nova-monitoring-discovery/completion_report.md
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:35:49 — Codex
 Implemented nova systemd discovery in the AgentSight background monitor and verified it against the live host.
 

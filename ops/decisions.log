@@ -1,5 +1,29 @@
 # Decisions Log
 
+## 2026-06-27 07:38:22 — Codex
+Decision recorded: Mark nova monitoring discovery complete after release service installation and live monitor DB receipts proved all 24 nova instances are tracked from systemd evidence.
+
+Files touched:
+- ops/in_progress/nova-monitoring-discovery/
+- ops/completed/nova-monitoring-discovery/
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
+## 2026-06-27 07:37:58 — Codex
+Decision recorded: Install the release `agentsight monitor` as a systemd user service because the requested end state is operational monitoring, and the repository already provides `monitor install-service` as the supported systemd installation path.
+
+Files touched:
+- collector/target/release/agentsight
+- /home/x/.config/systemd/user/agentsight-monitor.service
+- /home/x/.agentsight/monitor/monitor-2026-W26.db
+- ops/in_progress/nova-monitoring-discovery/completion_report.md
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:35:49 — Codex
 Decision recorded: Keep nova discovery scoped to the background monitor instead of generic live `top` process selection, because adding `nova-core` as a generic known agent flooded unfiltered live top output and broke existing agent-native top behavior.
 
