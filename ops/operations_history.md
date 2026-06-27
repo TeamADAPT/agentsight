@@ -1,5 +1,30 @@
 # Operations History
 
+## 2026-06-27 07:55:32 — Codex
+Enabled and started `agentsight-web.service`; verified AgentSight's own web UI serves HTML and snapshot data on port 7395.
+
+Files touched:
+- /home/x/.config/systemd/user/agentsight-web.service
+- ops/operations_history.md
+- ops/decisions.log
+
+Receipts:
+- `systemctl --user status agentsight-web.service --no-pager` showed `Active: active (running)` with `ExecStart=/adapt/repos/agentsight/collector/target/release/agentsight report serve --server-port 7395`.
+- `curl http://127.0.0.1:7395/` returned HTML.
+- `curl http://127.0.0.1:7395/api/v1/snapshot?audit_limit=10` returned `sessions=15`, `events=4564`, `source=materialized_view`.
+
+— Codex
+
+## 2026-06-27 07:55:01 — Codex
+Created and prepared a user systemd service for the AgentSight web UI on port 7395 after Chase requested AgentSight's own UI.
+
+Files touched:
+- /home/x/.config/systemd/user/agentsight-web.service
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:43:06 — Codex
 Recorded final dashboard API receipt after transient connection reset; dashboard returned HTTP 200 status JSON with all 24 nova services sampled.
 

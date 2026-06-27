@@ -1,5 +1,25 @@
 # Decisions Log
 
+## 2026-06-27 07:55:32 — Codex
+Decision recorded: Use the local/session snapshot source for AgentSight web UI because the background monitor DB uses a monitor-specific schema; nova monitor state remains available through `agentsight top --plain` and the monitor DB.
+
+Files touched:
+- /home/x/.config/systemd/user/agentsight-web.service
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
+## 2026-06-27 07:55:01 — Codex
+Decision recorded: Run AgentSight's own web UI as `agentsight-web.service` on port 7395 using `agentsight report serve`; keep the existing monitor service separate because it writes monitor snapshots but does not host the frontend.
+
+Files touched:
+- /home/x/.config/systemd/user/agentsight-web.service
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:43:06 — Codex
 Decision recorded: Treat the dashboard API as operational after a successful HTTP 200 status response with all 24 nova services sampled; AgentSight monitor completion remains based on the running monitor DB and systemd source of truth.
 
