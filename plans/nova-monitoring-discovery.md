@@ -1,7 +1,7 @@
 # Nova Monitoring Discovery Plan
 
 ## 2026-06-27 07:26:27 — Codex
-Status: pending implementation.
+Status: approved for implementation by active continuation request.
 
 Implement nova discovery inside the existing AgentSight monitor path, keeping `collector/src/cmd_monitor.rs` as the primary integration point unless code inspection proves a smaller dedicated module is warranted.
 

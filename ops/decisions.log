@@ -1,5 +1,15 @@
 # Decisions Log
 
+## 2026-06-27 07:27:51 — Codex
+Decision recorded: Treat the active user-provided continuation objective as authorization to implement the documented nova monitoring plan.
+
+Files touched:
+- plans/nova-monitoring-discovery.md
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:27:31 — Codex
 Decision recorded: Preserve broad log-file ignores while explicitly tracking `ops/decisions.log`, because repository policy requires this file in version control.
 

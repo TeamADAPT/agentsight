@@ -1,5 +1,15 @@
 # Operations History
 
+## 2026-06-27 07:27:51 — Codex
+Moved from planning into implementation under the active nova monitoring continuation request.
+
+Files touched:
+- plans/nova-monitoring-discovery.md
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:27:31 — Codex
 Added `.gitignore` exception so required operational decisions log is tracked despite the repository-wide `*.log` ignore rule.
 
