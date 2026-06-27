@@ -1,5 +1,14 @@
 # Decisions Log
 
+## 2026-06-27 07:43:06 — Codex
+Decision recorded: Treat the dashboard API as operational after a successful HTTP 200 status response with all 24 nova services sampled; AgentSight monitor completion remains based on the running monitor DB and systemd source of truth.
+
+Files touched:
+- ops/operations_history.md
+- ops/decisions.log
+
+— Codex
+
 ## 2026-06-27 07:41:44 — Codex
 Decision recorded: Restart `nova-dashboard.service` via passwordless sudo after the status endpoint accepted connections but produced no response for 30 seconds; this was necessary to verify the requested dashboard API surface.
 

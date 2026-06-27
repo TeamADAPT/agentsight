@@ -1,5 +1,18 @@
 # Operations History
 
+## 2026-06-27 07:43:06 — Codex
+Recorded final dashboard API receipt after transient connection reset; dashboard returned HTTP 200 status JSON with all 24 nova services sampled.
+
+Files touched:
+- ops/operations_history.md
+- ops/decisions.log
+
+Receipts:
+- `systemctl status nova-dashboard.service --no-pager` showed `Active: active (running)` since `2026-06-27 07:42:39 UTC`.
+- `curl --max-time 60 http://127.0.0.1:8765/api/status` returned 183622 bytes with `running_novas=24` and `sampled_services=24`.
+
+— Codex
+
 ## 2026-06-27 07:41:44 — Codex
 Completed final audit corrections: reran all 24 path checks with zero-padded instance IDs, restarted `nova-dashboard.service` with sudo after the status API hung, and confirmed dashboard API recovery.
 
